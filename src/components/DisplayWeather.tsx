@@ -1,20 +1,18 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { WiHumidity } from "react-icons/wi";
 import {
-  faMagnifyingGlass,
-  faWind,
-  faDroplet,
-  faMoon,
-  faSun,
-  faCloud,
-  faCloudSun,
-  faCloudRain,
-  faSnowflake,
-  faBolt,
-} from "@fortawesome/free-solid-svg-icons";
+  FaWind,
+  FaSun,
+  FaCloud,
+  FaCloudSun,
+  FaCloudRain,
+  FaSnowflake,
+  FaBolt,
+  FaSearch,
+  FaMoon,
+} from "react-icons/fa";
 
-// Weather data type
 type WeatherData = {
   name: string;
   sys: { country: string };
@@ -23,139 +21,177 @@ type WeatherData = {
   wind: { speed: number };
 };
 
+type HourlyData = {
+  dt: number;
+  temp: number;
+  weather: { icon: string; description: string }[];
+};
+
 const DisplayWeather: React.FC = () => {
   const api_key = "a48bbc5ec6c9320927fdbe9bc68ed148";
 
   const [weather, setWeather] = useState<WeatherData | null>(null);
+  const [hourly, setHourly] = useState<HourlyData[]>([]);
   const [city, setCity] = useState("");
   const [loading, setLoading] = useState(false);
-
-  // Dark mode state
   const [darkMode, setDarkMode] = useState(false);
+
   const toggleDarkMode = () => setDarkMode((prev) => !prev);
 
-  // Map OpenWeather icons to Font Awesome
   const getWeatherIcon = (icon: string) => {
-    if (icon.startsWith("01")) return faSun;
-    if (icon.startsWith("02")) return faCloudSun;
-    if (icon.startsWith("03") || icon.startsWith("04")) return faCloud;
-    if (icon.startsWith("09") || icon.startsWith("10")) return faCloudRain;
-    if (icon.startsWith("11")) return faBolt;
-    if (icon.startsWith("13")) return faSnowflake;
-    if (icon.startsWith("50")) return faCloud; // mist/fog
-    return faCloud;
+    if (!icon) return <FaCloud />;
+    if (icon.startsWith("01")) return <FaSun />;
+    if (icon.startsWith("02")) return <FaCloudSun />;
+    if (icon.startsWith("03") || icon.startsWith("04")) return <FaCloud />;
+    if (icon.startsWith("09") || icon.startsWith("10")) return <FaCloudRain />;
+    if (icon.startsWith("11")) return <FaBolt />;
+    if (icon.startsWith("13")) return <FaSnowflake />;
+    if (icon.startsWith("50")) return <FaCloud />;
+    return <FaCloud />;
   };
 
-  // Fetch weather by coordinates
-  const fetchCurrentWeather = async (lat: number, lon: number) => {
-    const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${api_key}`;
-    const response = await axios.get(url);
-    return response.data;
+  const fetchWeatherByCoords = async (lat: number, lon: number) => {
+    try {
+      const weatherRes = await axios.get(
+        `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${api_key}`
+      );
+      setWeather(weatherRes.data);
+
+      const hourlyRes = await axios.get(
+        `https://api.openweathermap.org/data/2.5/onecall?lat=${lat}&lon=${lon}&exclude=current,minutely,daily,alerts&units=metric&appid=${api_key}`
+      );
+      setHourly(hourlyRes.data.hourly.slice(0, 12));
+    } catch (err) {
+      console.error("Error fetching weather:", err);
+    }
   };
 
-  // Fetch weather by city
   const fetchWeatherByCity = async (cityName: string) => {
     if (!cityName) return;
     setLoading(true);
     try {
-      const url = `https://api.openweathermap.org/data/2.5/weather?q=${cityName}&units=metric&appid=${api_key}`;
-      const response = await axios.get(url);
-      setWeather(response.data);
+      const res = await axios.get(
+        `https://api.openweathermap.org/data/2.5/weather?q=${cityName}&units=metric&appid=${api_key}`
+      );
+      setWeather(res.data);
       setCity("");
-    } catch (error) {
+      fetchWeatherByCoords(res.data.coord.lat, res.data.coord.lon);
+    } catch {
       alert("City not found. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  // Load current location weather
   useEffect(() => {
-    navigator.geolocation.getCurrentPosition((position) => {
-      const { latitude, longitude } = position.coords;
-      fetchCurrentWeather(latitude, longitude).then((data) =>
-        setWeather(data)
-      );
-    });
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        fetchWeatherByCoords(latitude, longitude);
+      },
+      () => {
+        console.warn("Geolocation not allowed");
+      }
+    );
   }, []);
 
+  const formatHour = (dt: number) => {
+    const date = new Date(dt * 1000);
+    return date.getHours() + ":00";
+  };
+
   return (
-    <div className={`${darkMode ? "dark" : ""} min-h-screen`}>
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-400 to-blue-700 dark:from-gray-900 dark:to-gray-800 p-4 transition-colors">
-        <div className="w-full max-w-md bg-white dark:bg-gray-900 rounded-2xl shadow-xl p-6 space-y-6 text-gray-900 dark:text-gray-100 relative">
-          {/* Toggle button */}
+    <div className={`${darkMode ? "dark" : ""} min-h-screen transition-colors`}>
+      <div
+        className={`min-h-screen flex items-center justify-center p-4 transition-colors ${
+          darkMode
+            ? "bg-gradient-to-br from-gray-900 to-gray-800"
+            : "bg-gradient-to-br from-blue-400 to-blue-700"
+        }`}
+      >
+        <div
+          className={`w-full max-w-md rounded-2xl shadow-xl p-6 space-y-6 relative transition-colors ${
+            darkMode ? "bg-gray-900 text-gray-100" : "bg-white text-gray-900"
+          }`}
+        >
+          {/* Dark mode toggle */}
           <button
             onClick={toggleDarkMode}
-            className="absolute top-4 right-4 bg-gray-200 dark:bg-gray-800 text-gray-800 dark:text-gray-200 p-2 rounded-full shadow hover:scale-105 transition"
+            className={`absolute top-4 right-4 p-2 rounded-full shadow hover:scale-105 transition ${
+              darkMode
+                ? "bg-gray-800 text-gray-200"
+                : "bg-gray-200 text-gray-800"
+            }`}
           >
-            <FontAwesomeIcon icon={darkMode ? faMoon : faSun} />
+            {darkMode ? <FaMoon /> : <FaSun />}
           </button>
 
-          {/* Search Area */}
+          {/* Search */}
           <div className="flex items-center gap-2">
             <input
               type="text"
               placeholder="Enter city name"
               value={city}
               onChange={(e) => setCity(e.target.value)}
-              className="flex-1 p-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className={`flex-1 p-2 rounded-lg border focus:outline-none focus:ring-2 transition ${
+                darkMode
+                  ? "border-gray-700 bg-gray-800 text-gray-100 focus:ring-blue-400"
+                  : "border-gray-300 bg-gray-50 text-gray-900 focus:ring-blue-400"
+              }`}
             />
             <button
               onClick={() => fetchWeatherByCity(city)}
               className="bg-blue-500 text-white p-2 rounded-full hover:bg-blue-600 transition"
             >
-              <FontAwesomeIcon icon={faMagnifyingGlass} />
+              <FaSearch />
             </button>
           </div>
 
-          {/* Weather Info */}
+          {/* Weather info */}
           <div className="text-center space-y-2">
             {loading ? (
-              <h2 className="text-gray-500">Searching...</h2>
+              <h2 className="text-gray-500">Loading...</h2>
             ) : weather ? (
               <>
                 <h1 className="text-2xl font-bold">{weather.name}</h1>
-                <span className="text-gray-600 dark:text-gray-400">
+                <span
+                  className={`${
+                    darkMode ? "text-gray-400" : "text-gray-600"
+                  }`}
+                >
                   {weather.sys.country}
                 </span>
                 <div className="flex justify-center text-5xl my-2">
-                  <FontAwesomeIcon
-                    icon={getWeatherIcon(weather.weather[0].icon)}
-                    className="text-blue-500"
-                  />
+                  {getWeatherIcon(weather.weather[0].icon)}
                 </div>
                 <h1 className="text-4xl font-bold">
                   {Math.round(weather.main.temp)}°C
                 </h1>
-                <h2 className="capitalize text-gray-700 dark:text-gray-300">
+                <h2
+                  className={`capitalize ${
+                    darkMode ? "text-gray-300" : "text-gray-700"
+                  }`}
+                >
                   {weather.weather[0].description}
                 </h2>
               </>
             ) : (
-              <h2 className="text-gray-500">Loading...</h2>
+              <h2 className="text-gray-500">Search a city or enable geolocation</h2>
             )}
           </div>
 
-          {/* Bottom Info */}
+          {/* Bottom info */}
           {weather && (
-            <div className="flex justify-around mt-4 border-t border-gray-200 dark:border-gray-700 pt-4">
+            <div className="flex justify-around mt-4 border-t pt-4 border-gray-200 dark:border-gray-700">
               <div className="flex items-center gap-2">
-                <FontAwesomeIcon
-                  icon={faDroplet}
-                  className="text-blue-500 text-xl"
-                />
+                <WiHumidity className="text-blue-500 text-xl h-13 w-13" />
                 <div>
                   <h1 className="font-bold">{weather.main.humidity}%</h1>
-                  <p className="text-gray-500 dark:text-gray-400 text-sm">
-                    Humidity
-                  </p>
+                  <p className="text-gray-500 dark:text-gray-400 text-sm">Humidity</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <FontAwesomeIcon
-                  icon={faWind}
-                  className="text-blue-500 text-xl"
-                />
+                <FaWind className="text-blue-500 text-3xl" />
                 <div>
                   <h1 className="font-bold">{weather.wind.speed} km/h</h1>
                   <p className="text-gray-500 dark:text-gray-400 text-sm">
@@ -163,6 +199,23 @@ const DisplayWeather: React.FC = () => {
                   </p>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* Hourly forecast */}
+          {hourly.length > 0 && (
+            <div className="mt-6 overflow-x-auto flex gap-4 text-center">
+              {hourly.map((h) => (
+                <div
+                  key={h.dt}
+                  className={`flex flex-col items-center p-2 rounded-lg min-w-[60px] transition-colors ${
+                    darkMode ? "bg-gray-800" : "bg-gray-100"
+                  }`}
+                >
+                  <span className="text-sm">{formatHour(h.dt)}</span>
+                  <span className="text-xl font-bold">{Math.round(h.temp)}°C</span>
+                </div>
+              ))}
             </div>
           )}
         </div>
