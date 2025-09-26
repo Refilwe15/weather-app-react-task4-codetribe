@@ -19,12 +19,13 @@ type WeatherData = {
   main: { temp: number; humidity: number };
   weather: { description: string; icon: string }[];
   wind: { speed: number };
+  coord: { lat: number; lon: number };
 };
 
 type HourlyData = {
   dt: number;
   temp: number;
-  weather: { icon: string; description: string }[];
+  weather: { description: string; icon: string }[];
 };
 
 const DisplayWeather: React.FC = () => {
@@ -40,13 +41,15 @@ const DisplayWeather: React.FC = () => {
 
   const getWeatherIcon = (icon: string) => {
     if (!icon) return <FaCloud />;
-    if (icon.startsWith("01")) return <FaSun />;
-    if (icon.startsWith("02")) return <FaCloudSun />;
-    if (icon.startsWith("03") || icon.startsWith("04")) return <FaCloud />;
-    if (icon.startsWith("09") || icon.startsWith("10")) return <FaCloudRain />;
-    if (icon.startsWith("11")) return <FaBolt />;
-    if (icon.startsWith("13")) return <FaSnowflake />;
-    if (icon.startsWith("50")) return <FaCloud />;
+    if (icon.startsWith("01")) return <FaSun className="text-yellow-400" />;
+    if (icon.startsWith("02")) return <FaCloudSun className="text-yellow-300" />;
+    if (icon.startsWith("03") || icon.startsWith("04"))
+      return <FaCloud className="text-gray-400" />;
+    if (icon.startsWith("09") || icon.startsWith("10"))
+      return <FaCloudRain className="text-blue-400" />;
+    if (icon.startsWith("11")) return <FaBolt className="text-yellow-500" />;
+    if (icon.startsWith("13")) return <FaSnowflake className="text-blue-200" />;
+    if (icon.startsWith("50")) return <FaCloud className="text-gray-300" />;
     return <FaCloud />;
   };
 
@@ -57,12 +60,19 @@ const DisplayWeather: React.FC = () => {
       );
       setWeather(weatherRes.data);
 
-      const hourlyRes = await axios.get(
-        `https://api.openweathermap.org/data/2.5/onecall?lat=${lat}&lon=${lon}&exclude=current,minutely,daily,alerts&units=metric&appid=${api_key}`
+      const forecastRes = await axios.get(
+        `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&units=metric&appid=${api_key}`
       );
-      setHourly(hourlyRes.data.hourly.slice(0, 12));
+
+      const mappedHourly = forecastRes.data.list.slice(0, 12).map((h: any) => ({
+        dt: h.dt,
+        temp: h.main.temp,
+        weather: h.weather,
+      }));
+
+      setHourly(mappedHourly);
     } catch (err) {
-      console.error("Error fetching weather:", err);
+      console.error(err);
     }
   };
 
@@ -89,137 +99,112 @@ const DisplayWeather: React.FC = () => {
         const { latitude, longitude } = position.coords;
         fetchWeatherByCoords(latitude, longitude);
       },
-      () => {
-        console.warn("Geolocation not allowed");
-      }
+      () => console.warn("Geolocation not allowed")
     );
   }, []);
 
   const formatHour = (dt: number) => {
     const date = new Date(dt * 1000);
-    return date.getHours() + ":00";
+    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   };
 
   return (
-    <div className={`${darkMode ? "dark" : ""} min-h-screen transition-colors`}>
-      <div
-        className={`min-h-screen flex items-center justify-center p-4 transition-colors ${
-          darkMode
-            ? "bg-gradient-to-br from-gray-900 to-gray-800"
-            : "bg-gradient-to-br from-blue-400 to-blue-700"
+    <div className={`${darkMode ? "bg-gray-900 text-gray-100" : "bg-white text-gray-900"} transition-colors w-full`}>
+      {/* Dark mode toggle */}
+      <button
+        onClick={toggleDarkMode}
+        className={`absolute top-5 right-5 p-3 rounded-full shadow hover:scale-105 transition ${
+          darkMode ? "bg-gray-800 text-gray-200" : "bg-gray-200 text-gray-800"
         }`}
       >
-        <div
-          className={`w-full max-w-md rounded-2xl shadow-xl p-6 space-y-6 relative transition-colors ${
-            darkMode ? "bg-gray-900 text-gray-100" : "bg-white text-gray-900"
+        {darkMode ? <FaMoon size={22} /> : <FaSun size={22} />}
+      </button>
+
+      {/* Search */}
+      <div className="flex items-center gap-3 p-4">
+        <input
+          type="text"
+          placeholder="Enter city name"
+          value={city}
+          onChange={(e) => setCity(e.target.value)}
+          className={`flex-1 p-3 rounded-lg border text-lg focus:outline-none focus:ring-2 transition ${
+            darkMode
+              ? "border-gray-700 bg-gray-800 text-gray-100 focus:ring-blue-400"
+              : "border-gray-300 bg-gray-50 text-gray-900 focus:ring-blue-400"
           }`}
+        />
+        <button
+          onClick={() => fetchWeatherByCity(city)}
+          className="bg-blue-500 text-white p-3 rounded-full hover:bg-blue-600 transition"
         >
-          {/* Dark mode toggle */}
-          <button
-            onClick={toggleDarkMode}
-            className={`absolute top-4 right-4 p-2 rounded-full shadow hover:scale-105 transition ${
-              darkMode
-                ? "bg-gray-800 text-gray-200"
-                : "bg-gray-200 text-gray-800"
-            }`}
-          >
-            {darkMode ? <FaMoon /> : <FaSun />}
-          </button>
-
-          {/* Search */}
-          <div className="flex items-center gap-2">
-            <input
-              type="text"
-              placeholder="Enter city name"
-              value={city}
-              onChange={(e) => setCity(e.target.value)}
-              className={`flex-1 p-2 rounded-lg border focus:outline-none focus:ring-2 transition ${
-                darkMode
-                  ? "border-gray-700 bg-gray-800 text-gray-100 focus:ring-blue-400"
-                  : "border-gray-300 bg-gray-50 text-gray-900 focus:ring-blue-400"
-              }`}
-            />
-            <button
-              onClick={() => fetchWeatherByCity(city)}
-              className="bg-blue-500 text-white p-2 rounded-full hover:bg-blue-600 transition"
-            >
-              <FaSearch />
-            </button>
-          </div>
-
-          {/* Weather info */}
-          <div className="text-center space-y-2">
-            {loading ? (
-              <h2 className="text-gray-500">Loading...</h2>
-            ) : weather ? (
-              <>
-                <h1 className="text-2xl font-bold">{weather.name}</h1>
-                <span
-                  className={`${
-                    darkMode ? "text-gray-400" : "text-gray-600"
-                  }`}
-                >
-                  {weather.sys.country}
-                </span>
-                <div className="flex justify-center text-5xl my-2">
-                  {getWeatherIcon(weather.weather[0].icon)}
-                </div>
-                <h1 className="text-4xl font-bold">
-                  {Math.round(weather.main.temp)}°C
-                </h1>
-                <h2
-                  className={`capitalize ${
-                    darkMode ? "text-gray-300" : "text-gray-700"
-                  }`}
-                >
-                  {weather.weather[0].description}
-                </h2>
-              </>
-            ) : (
-              <h2 className="text-gray-500">Search a city or enable geolocation</h2>
-            )}
-          </div>
-
-          {/* Bottom info */}
-          {weather && (
-            <div className="flex justify-around mt-4 border-t pt-4 border-gray-200 dark:border-gray-700">
-              <div className="flex items-center gap-2">
-                <WiHumidity className="text-blue-500 text-xl h-13 w-13" />
-                <div>
-                  <h1 className="font-bold">{weather.main.humidity}%</h1>
-                  <p className="text-gray-500 dark:text-gray-400 text-sm">Humidity</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <FaWind className="text-blue-500 text-3xl" />
-                <div>
-                  <h1 className="font-bold">{weather.wind.speed} km/h</h1>
-                  <p className="text-gray-500 dark:text-gray-400 text-sm">
-                    Wind Speed
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Hourly forecast */}
-          {hourly.length > 0 && (
-            <div className="mt-6 overflow-x-auto flex gap-4 text-center">
-              {hourly.map((h) => (
-                <div
-                  key={h.dt}
-                  className={`flex flex-col items-center p-2 rounded-lg min-w-[60px] transition-colors ${
-                    darkMode ? "bg-gray-800" : "bg-gray-100"
-                  }`}
-                >
-                  <span className="text-sm">{formatHour(h.dt)}</span>
-                  <span className="text-xl font-bold">{Math.round(h.temp)}°C</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+          <FaSearch size={20} />
+        </button>
       </div>
+
+      {/* Current weather info */}
+      <div className="text-center space-y-4 p-4">
+        {loading ? (
+          <h2 className="text-gray-500">Loading...</h2>
+        ) : weather ? (
+          <>
+            <h1 className="text-3xl font-bold">{weather.name}</h1>
+            <span className={`${darkMode ? "text-gray-400" : "text-gray-600"} text-lg`}>
+              {weather.sys.country}
+            </span>
+            <div className="flex justify-center text-7xl my-4">
+              {getWeatherIcon(weather.weather[0].icon)}
+            </div>
+            <h1 className="text-5xl font-bold">{Math.round(weather.main.temp)}°C</h1>
+            <h2 className={`capitalize text-xl ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
+              {weather.weather[0].description}
+            </h2>
+          </>
+        ) : (
+          <h2 className="text-gray-500">Search a city or enable geolocation</h2>
+        )}
+      </div>
+
+      {/* Bottom info */}
+      {weather && (
+        <div className="flex justify-around mt-6 border-t pt-6 border-gray-200 dark:border-gray-900 p-4">
+          <div className="flex items-center gap-3">
+            <WiHumidity className="text-blue-500 text-3xl h-12 w-12" />
+            <div>
+              <h1 className="font-bold text-xl">{weather.main.humidity}%</h1>
+              <p className="text-gray-500 dark:text-gray-400 text-sm">Humidity</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <FaWind className="text-blue-500 text-3xl h-12 w-12" />
+            <div>
+              <h1 className="font-bold text-xl">{weather.wind.speed} km/h</h1>
+              <p className="text-gray-500 dark:text-gray-400 text-sm ">Wind Speed</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Hourly forecast */}
+      {hourly.length > 0 && (
+        <div className="mt-8 p-4">
+          <h2 className="font-bold text-2xl mb-4">Hourly Forecast</h2>
+          <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-gray-400 dark:scrollbar-thumb-gray-600">
+            {hourly.slice(0, 8).map((h) => (
+              <div
+                key={h.dt}
+                className={`flex-shrink-0 w-36 flex flex-col items-center p-4 transition-colors ${
+                  darkMode ? "bg-gray-800 text-gray-100" : "bg-gray-100 text-gray-900"
+                }`}
+              >
+                <span className="text-lg mb-2">{formatHour(h.dt)}</span>
+                <div className="text-4xl mb-2">{getWeatherIcon(h.weather[0].icon)}</div>
+                <span className="font-bold text-xl">{Math.round(h.temp)}°C</span>
+                <span className="text-sm capitalize text-center">{h.weather[0].description}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
