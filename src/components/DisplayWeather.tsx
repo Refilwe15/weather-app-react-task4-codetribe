@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { WiHumidity } from "react-icons/wi";
+import { MdNotificationsActive } from 'react-icons/md';
 import {
   FaWind,
+  
   FaSun,
   FaCloud,
   FaCloudSun,
@@ -90,7 +92,7 @@ const DisplayWeather: React.FC = () => {
 
       setWeather(weatherRes.data);
       setHourly(mappedHourly);
-      cacheWeather(weatherRes.data, mappedHourly); // ✅ store in cache
+      cacheWeather(weatherRes.data, mappedHourly);
       setOffline(false);
     } catch (err) {
       console.error("API error, loading cached data...", err);
@@ -142,10 +144,14 @@ const DisplayWeather: React.FC = () => {
 
   return (
     <div
-      className={`min-h-screen w-screen m-0 p-0 flex flex-col items-center ${
-        darkMode ? "bg-gray-900 text-gray-100" : "bg-white text-gray-900"
-      } transition-colors`}
+      className={`min-h-screen w-screen m-0 p-0 flex flex-col items-center transition-colors font-mono ${
+        darkMode
+          ? "bg-gray-900 text-gray-100"
+          : "bg-gradient-to-br from-blue-50 via-blue-100 to-blue-200 text-gray-900"
+      }`}
     >
+
+      
       {/* Dark mode toggle */}
       <button
         onClick={toggleDarkMode}
@@ -166,12 +172,15 @@ const DisplayWeather: React.FC = () => {
           className={`flex-1 p-3 rounded-lg border text-lg focus:outline-none focus:ring-2 transition ${
             darkMode
               ? "border-gray-700 bg-gray-800 text-gray-100 focus:ring-blue-400"
-              : "border-gray-300 bg-gray-50 text-gray-900 focus:ring-blue-400"
+              : "border-gray-300 bg-white text-gray-900 focus:ring-blue-400"
           }`}
         />
+        {/* notification */}
+                    <div className="flex justify-center text-7xl my-4">
+            </div>
         <button
           onClick={() => fetchWeatherByCity(city)}
-          className="bg-blue-500 text-white p-3 rounded-full hover:bg-blue-600 transition"
+          className="bg-blue-500 text-white p-3 rounded-full font-mono hover:bg-blue-600 transition"
         >
           <FaSearch size={20} />
         </button>
@@ -186,7 +195,7 @@ const DisplayWeather: React.FC = () => {
             <h1 className="text-3xl font-bold">{weather.name}</h1>
             <span
               className={`${
-                darkMode ? "text-gray-400" : "text-gray-600"
+                darkMode ? "text-gray-400" : "text-gray-700"
               } text-lg`}
             >
               {weather.sys.country}
@@ -199,19 +208,19 @@ const DisplayWeather: React.FC = () => {
             </h1>
             <h2
               className={`capitalize text-xl ${
-                darkMode ? "text-gray-300" : "text-gray-700"
+                darkMode ? "text-gray-300" : "text-gray-800"
               }`}
             >
-              {weather.weather[0].description}
+              {weather.weather[0].description }
             </h2>
             {offline && (
-              <p className="text-red-500 mt-2 text-sm font-semibold">
-              Offline Mode (showing cached data)
+              <p className="text-red-500 mt-2 text-sm font-semibold font-mono">
+                Offline Mode (showing cached data)
               </p>
             )}
           </>
         ) : (
-          <h2 className="text-gray-500">Search a city or enable geolocation</h2>
+          <h2 className="text-gray-500 font-mono">Search a city or enable geolocation</h2>
         )}
       </div>
 
@@ -219,21 +228,17 @@ const DisplayWeather: React.FC = () => {
       {weather && (
         <div className="flex justify-around mt-6 border-t pt-6 border-gray-200 dark:border-gray-700 p-4 w-full max-w-[800px]">
           <div className="flex items-center gap-3">
-            <WiHumidity className="text-blue-500 text-3xl h-12 w-12" />
+            <WiHumidity className="text-blue-500 text-3xl h-12 w-12 font-mono" />
             <div>
-              <h1 className="font-bold text-xl">{weather.main.humidity}%</h1>
-              <p className="text-gray-500 dark:text-gray-400 text-sm">
-                Humidity
-              </p>
+              <h1 className="font-bold text-xl font-mono">{weather.main.humidity}%</h1>
+              <p className="text-gray-500 dark:text-gray-400 text-sm font-mono">Humidity</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <FaWind className="text-blue-500 text-3xl h-12 w-12" />
+            <FaWind className="text-blue-500 text-3xl h-12 w-12 font-mono" />
             <div>
               <h1 className="font-bold text-xl">{weather.wind.speed} km/h</h1>
-              <p className="text-gray-500 dark:text-gray-400 text-sm ">
-                Wind Speed
-              </p>
+              <p className="text-gray-500 dark:text-gray-400 text-sm font-mono">Wind Speed</p>
             </div>
           </div>
         </div>
@@ -242,26 +247,37 @@ const DisplayWeather: React.FC = () => {
       {/* Hourly forecast */}
       {hourly.length > 0 && (
         <div className="mt-8 p-4 w-full max-w-[800px]">
-          <h2 className="font-bold text-2xl mb-4 text-center">
-            Hourly Forecast
-          </h2>
+          <div  className="flex items-center justify-center gap-4">
+
+            {/*Hourly Button*/}
+
+          <button className="font-bold text-2xl mb-4 text-center font-mono 
+           px-4 py-2 rounded-md bg-blue-400 bg-opacity-50 hover:bg-blue-500 transition-all">Hourly</button>
+
+           {/*Weekly Button*/}
+
+          <button className="font-bold text-2xl mb-4 text-center font-mono px-4 py-2  bg-opacity-50
+           bg-blue-400 transition-all rounded-md hover:bg-blue-500"
+           >Daily</button>
+          </div>
+           
+
+           {/* Hourly forecast grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {hourly.slice(0, 8).map((h) => (
               <div
                 key={h.dt}
                 className={`flex flex-col items-center p-4 transition-colors rounded-lg ${
                   darkMode
-                    ? "bg-gray-800 text-gray-100"
-                    : "bg-gray-100 text-gray-900"
+                    ? "bg-gradient-to-br from-gray-700 via-gray-800 to-gray-900 text-gray-100"
+                    : "bg-gradient-to-br from-blue-100 via-blue-200 to-blue-300 text-gray-900"
                 }`}
               >
                 <span className="text-lg mb-2">{formatHour(h.dt)}</span>
                 <div className="text-4xl mb-2">
                   {getWeatherIcon(h.weather[0].icon)}
                 </div>
-                <span className="font-bold text-xl">
-                  {Math.round(h.temp)}°C
-                </span>
+                <span className="font-bold text-xl">{Math.round(h.temp)}°C</span>
                 <span className="text-sm capitalize text-center">
                   {h.weather[0].description}
                 </span>
