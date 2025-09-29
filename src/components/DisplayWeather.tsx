@@ -36,8 +36,28 @@ const DisplayWeather: React.FC = () => {
   const [city, setCity] = useState("");
   const [loading, setLoading] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
+  const [offline, setOffline] = useState(false);
 
   const toggleDarkMode = () => setDarkMode((prev) => !prev);
+
+  // Save cache
+  const cacheWeather = (data: WeatherData, forecast: HourlyData[]) => {
+    localStorage.setItem(
+      "weatherCache",
+      JSON.stringify({ weather: data, forecast })
+    );
+  };
+
+  // Load cache
+  const loadCachedWeather = () => {
+    const cached = localStorage.getItem("weatherCache");
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      setWeather(parsed.weather);
+      setHourly(parsed.forecast || []);
+      setOffline(true);
+    }
+  };
 
   const getWeatherIcon = (icon: string) => {
     if (!icon) return <FaCloud />;
@@ -58,8 +78,6 @@ const DisplayWeather: React.FC = () => {
       const weatherRes = await axios.get(
         `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${api_key}`
       );
-      setWeather(weatherRes.data);
-
       const forecastRes = await axios.get(
         `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&units=metric&appid=${api_key}`
       );
@@ -70,9 +88,13 @@ const DisplayWeather: React.FC = () => {
         weather: h.weather,
       }));
 
+      setWeather(weatherRes.data);
       setHourly(mappedHourly);
+      cacheWeather(weatherRes.data, mappedHourly); // ✅ store in cache
+      setOffline(false);
     } catch (err) {
-      console.error(err);
+      console.error("API error, loading cached data...", err);
+      loadCachedWeather();
     }
   };
 
@@ -83,23 +105,33 @@ const DisplayWeather: React.FC = () => {
       const res = await axios.get(
         `https://api.openweathermap.org/data/2.5/weather?q=${cityName}&units=metric&appid=${api_key}`
       );
-      setWeather(res.data);
+      const coords = res.data.coord;
+      await fetchWeatherByCoords(coords.lat, coords.lon);
       setCity("");
-      fetchWeatherByCoords(res.data.coord.lat, res.data.coord.lon);
     } catch {
-      alert("City not found. Please try again.");
+      alert("City not found. Loading cached data if available.");
+      loadCachedWeather();
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    if (!navigator.onLine) {
+      console.warn("Offline mode: loading cached data...");
+      loadCachedWeather();
+      return;
+    }
+
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
         fetchWeatherByCoords(latitude, longitude);
       },
-      () => console.warn("Geolocation not allowed")
+      () => {
+        console.warn("Geolocation not allowed, loading cached data...");
+        loadCachedWeather();
+      }
     );
   }, []);
 
@@ -109,7 +141,11 @@ const DisplayWeather: React.FC = () => {
   };
 
   return (
-    <div className={`${darkMode ? "bg-gray-900 text-gray-100" : "bg-white text-gray-900"} transition-colors w-full`}>
+    <div
+      className={`min-h-screen w-screen m-0 p-0 flex flex-col items-center ${
+        darkMode ? "bg-gray-900 text-gray-100" : "bg-white text-gray-900"
+      } transition-colors`}
+    >
       {/* Dark mode toggle */}
       <button
         onClick={toggleDarkMode}
@@ -121,7 +157,7 @@ const DisplayWeather: React.FC = () => {
       </button>
 
       {/* Search */}
-      <div className="flex items-center gap-3 p-4">
+      <div className="flex items-center gap-3 p-4 w-full max-w-[800px]">
         <input
           type="text"
           placeholder="Enter city name"
@@ -142,22 +178,37 @@ const DisplayWeather: React.FC = () => {
       </div>
 
       {/* Current weather info */}
-      <div className="text-center space-y-4 p-4">
+      <div className="text-center space-y-4 p-4 w-full max-w-[800px]">
         {loading ? (
           <h2 className="text-gray-500">Loading...</h2>
         ) : weather ? (
           <>
             <h1 className="text-3xl font-bold">{weather.name}</h1>
-            <span className={`${darkMode ? "text-gray-400" : "text-gray-600"} text-lg`}>
+            <span
+              className={`${
+                darkMode ? "text-gray-400" : "text-gray-600"
+              } text-lg`}
+            >
               {weather.sys.country}
             </span>
             <div className="flex justify-center text-7xl my-4">
               {getWeatherIcon(weather.weather[0].icon)}
             </div>
-            <h1 className="text-5xl font-bold">{Math.round(weather.main.temp)}°C</h1>
-            <h2 className={`capitalize text-xl ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
+            <h1 className="text-5xl font-bold">
+              {Math.round(weather.main.temp)}°C
+            </h1>
+            <h2
+              className={`capitalize text-xl ${
+                darkMode ? "text-gray-300" : "text-gray-700"
+              }`}
+            >
               {weather.weather[0].description}
             </h2>
+            {offline && (
+              <p className="text-red-500 mt-2 text-sm font-semibold">
+              Offline Mode (showing cached data)
+              </p>
+            )}
           </>
         ) : (
           <h2 className="text-gray-500">Search a city or enable geolocation</h2>
@@ -166,19 +217,23 @@ const DisplayWeather: React.FC = () => {
 
       {/* Bottom info */}
       {weather && (
-        <div className="flex justify-around mt-6 border-t pt-6 border-gray-200 dark:border-gray-900 p-4">
+        <div className="flex justify-around mt-6 border-t pt-6 border-gray-200 dark:border-gray-700 p-4 w-full max-w-[800px]">
           <div className="flex items-center gap-3">
             <WiHumidity className="text-blue-500 text-3xl h-12 w-12" />
             <div>
               <h1 className="font-bold text-xl">{weather.main.humidity}%</h1>
-              <p className="text-gray-500 dark:text-gray-400 text-sm">Humidity</p>
+              <p className="text-gray-500 dark:text-gray-400 text-sm">
+                Humidity
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-3">
             <FaWind className="text-blue-500 text-3xl h-12 w-12" />
             <div>
               <h1 className="font-bold text-xl">{weather.wind.speed} km/h</h1>
-              <p className="text-gray-500 dark:text-gray-400 text-sm ">Wind Speed</p>
+              <p className="text-gray-500 dark:text-gray-400 text-sm ">
+                Wind Speed
+              </p>
             </div>
           </div>
         </div>
@@ -186,20 +241,30 @@ const DisplayWeather: React.FC = () => {
 
       {/* Hourly forecast */}
       {hourly.length > 0 && (
-        <div className="mt-8 p-4">
-          <h2 className="font-bold text-2xl mb-4">Hourly Forecast</h2>
-          <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-gray-400 dark:scrollbar-thumb-gray-600">
+        <div className="mt-8 p-4 w-full max-w-[800px]">
+          <h2 className="font-bold text-2xl mb-4 text-center">
+            Hourly Forecast
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {hourly.slice(0, 8).map((h) => (
               <div
                 key={h.dt}
-                className={`flex-shrink-0 w-36 flex flex-col items-center p-4 transition-colors ${
-                  darkMode ? "bg-gray-800 text-gray-100" : "bg-gray-100 text-gray-900"
+                className={`flex flex-col items-center p-4 transition-colors rounded-lg ${
+                  darkMode
+                    ? "bg-gray-800 text-gray-100"
+                    : "bg-gray-100 text-gray-900"
                 }`}
               >
                 <span className="text-lg mb-2">{formatHour(h.dt)}</span>
-                <div className="text-4xl mb-2">{getWeatherIcon(h.weather[0].icon)}</div>
-                <span className="font-bold text-xl">{Math.round(h.temp)}°C</span>
-                <span className="text-sm capitalize text-center">{h.weather[0].description}</span>
+                <div className="text-4xl mb-2">
+                  {getWeatherIcon(h.weather[0].icon)}
+                </div>
+                <span className="font-bold text-xl">
+                  {Math.round(h.temp)}°C
+                </span>
+                <span className="text-sm capitalize text-center">
+                  {h.weather[0].description}
+                </span>
               </div>
             ))}
           </div>
