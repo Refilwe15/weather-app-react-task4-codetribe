@@ -1,10 +1,9 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { WiHumidity } from "react-icons/wi";
-import { MdNotificationsActive } from 'react-icons/md';
+import { MdNotificationsActive } from "react-icons/md";
 import {
   FaWind,
-  
   FaSun,
   FaCloud,
   FaCloudSun,
@@ -13,6 +12,9 @@ import {
   FaBolt,
   FaSearch,
   FaMoon,
+  FaHeart,
+  FaRegHeart,
+  FaMapMarkerAlt,
 } from "react-icons/fa";
 
 type WeatherData = {
@@ -39,18 +41,15 @@ const DisplayWeather: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [offline, setOffline] = useState(false);
+  const [savedCities, setSavedCities] = useState<string[]>([]);
 
   const toggleDarkMode = () => setDarkMode((prev) => !prev);
 
-  // Save cache
+  // Cache weather data
   const cacheWeather = (data: WeatherData, forecast: HourlyData[]) => {
-    localStorage.setItem(
-      "weatherCache",
-      JSON.stringify({ weather: data, forecast })
-    );
+    localStorage.setItem("weatherCache", JSON.stringify({ weather: data, forecast }));
   };
 
-  // Load cache
   const loadCachedWeather = () => {
     const cached = localStorage.getItem("weatherCache");
     if (cached) {
@@ -61,14 +60,29 @@ const DisplayWeather: React.FC = () => {
     }
   };
 
+  // Save city to favorites
+  const saveLocation = () => {
+    if (!weather) return;
+    const cityName = weather.name;
+    if (!savedCities.includes(cityName)) {
+      const updated = [...savedCities, cityName];
+      setSavedCities(updated);
+      localStorage.setItem("savedCities", JSON.stringify(updated));
+    }
+  };
+
+  // Load saved cities from storage
+  useEffect(() => {
+    const stored = localStorage.getItem("savedCities");
+    if (stored) setSavedCities(JSON.parse(stored));
+  }, []);
+
   const getWeatherIcon = (icon: string) => {
     if (!icon) return <FaCloud />;
     if (icon.startsWith("01")) return <FaSun className="text-yellow-400" />;
     if (icon.startsWith("02")) return <FaCloudSun className="text-yellow-300" />;
-    if (icon.startsWith("03") || icon.startsWith("04"))
-      return <FaCloud className="text-gray-400" />;
-    if (icon.startsWith("09") || icon.startsWith("10"))
-      return <FaCloudRain className="text-blue-400" />;
+    if (icon.startsWith("03") || icon.startsWith("04")) return <FaCloud className="text-gray-400" />;
+    if (icon.startsWith("09") || icon.startsWith("10")) return <FaCloudRain className="text-blue-400" />;
     if (icon.startsWith("11")) return <FaBolt className="text-yellow-500" />;
     if (icon.startsWith("13")) return <FaSnowflake className="text-blue-200" />;
     if (icon.startsWith("50")) return <FaCloud className="text-gray-300" />;
@@ -144,14 +158,12 @@ const DisplayWeather: React.FC = () => {
 
   return (
     <div
-      className={`min-h-screen w-screen m-0 p-0 flex flex-col items-center transition-colors font-mono ${
+      className={`min-h-screen w-screen flex flex-col items-center font-mono transition-colors ${
         darkMode
           ? "bg-gray-900 text-gray-100"
           : "bg-gradient-to-br from-blue-50 via-blue-100 to-blue-200 text-gray-900"
       }`}
     >
-
-      
       {/* Dark mode toggle */}
       <button
         onClick={toggleDarkMode}
@@ -162,8 +174,8 @@ const DisplayWeather: React.FC = () => {
         {darkMode ? <FaMoon size={22} /> : <FaSun size={22} />}
       </button>
 
-      {/* Search */}
-      <div className="flex items-center gap-3 p-4 w-full max-w-[800px]">
+      {/* Search Section */}
+      <div className="flex items-center gap-3 p-4 w-full max-w-[800px] mt-8">
         <input
           type="text"
           placeholder="Enter city name"
@@ -175,115 +187,117 @@ const DisplayWeather: React.FC = () => {
               : "border-gray-300 bg-white text-gray-900 focus:ring-blue-400"
           }`}
         />
-        {/* notification */}
-                    <div className="flex justify-center text-7xl my-4">
-            </div>
         <button
           onClick={() => fetchWeatherByCity(city)}
-          className="bg-blue-500 text-white p-3 rounded-full font-mono hover:bg-blue-600 transition"
+          className={`p-3 rounded-full transition ${
+            darkMode
+              ? "bg-blue-600 hover:bg-blue-700 text-white"
+              : "bg-blue-500 hover:bg-blue-600 text-white"
+          }`}
         >
           <FaSearch size={20} />
         </button>
       </div>
 
-      {/* Current weather info */}
+      {/* Saved Locations */}
+      {savedCities.length > 0 && (
+        <div className="mt-3 text-center">
+          <p className="text-sm mb-2">Saved Cities:</p>
+          <div className="flex flex-wrap justify-center gap-2">
+            {savedCities.map((cityName) => (
+              <button
+                key={cityName}
+                onClick={() => fetchWeatherByCity(cityName)}
+                className={`px-3 py-1 rounded-full text-sm ${
+                  darkMode
+                    ? "bg-gray-700 hover:bg-gray-600 text-gray-100"
+                    : "bg-blue-200 hover:bg-blue-300 text-gray-900"
+                }`}
+              >
+                {cityName}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Current Weather */}
       <div className="text-center space-y-4 p-4 w-full max-w-[800px]">
         {loading ? (
           <h2 className="text-gray-500">Loading...</h2>
         ) : weather ? (
           <>
-            <h1 className="text-3xl font-bold">{weather.name}</h1>
-            <span
-              className={`${
-                darkMode ? "text-gray-400" : "text-gray-700"
-              } text-lg`}
-            >
-              {weather.sys.country}
-            </span>
+            <h1 className="text-3xl font-bold flex items-center justify-center gap-2">
+              <FaMapMarkerAlt />
+              {weather.name}, {weather.sys.country}
+              <button
+                onClick={saveLocation}
+                className="ml-2 hover:scale-110 transition"
+              >
+                {savedCities.includes(weather.name) ? (
+                  <FaHeart className="text-red-500" />
+                ) : (
+                  <FaRegHeart className="text-gray-400" />
+                )}
+              </button>
+            </h1>
+
             <div className="flex justify-center text-7xl my-4">
               {getWeatherIcon(weather.weather[0].icon)}
             </div>
-            <h1 className="text-5xl font-bold">
-              {Math.round(weather.main.temp)}°C
-            </h1>
-            <h2
-              className={`capitalize text-xl ${
-                darkMode ? "text-gray-300" : "text-gray-800"
-              }`}
-            >
-              {weather.weather[0].description }
-            </h2>
+
+            <h1 className="text-5xl font-bold">{Math.round(weather.main.temp)}°C</h1>
+            <h2 className="capitalize text-xl">{weather.weather[0].description}</h2>
+
             {offline && (
-              <p className="text-red-500 mt-2 text-sm font-semibold font-mono">
-                Offline Mode (showing cached data)
-              </p>
+              <p className="text-red-500 text-sm font-semibold">Offline Mode (Cached)</p>
             )}
           </>
         ) : (
-          <h2 className="text-gray-500 font-mono">Search a city or enable geolocation</h2>
+          <h2 className="text-gray-500">Search a city or enable location</h2>
         )}
       </div>
 
-      {/* Bottom info */}
-      {weather && (
-        <div className="flex justify-around mt-6 border-t pt-6 border-gray-200 dark:border-gray-700 p-4 w-full max-w-[800px]">
-          <div className="flex items-center gap-3">
-            <WiHumidity className="text-blue-500 text-3xl h-12 w-12 font-mono" />
-            <div>
-              <h1 className="font-bold text-xl font-mono">{weather.main.humidity}%</h1>
-              <p className="text-gray-500 dark:text-gray-400 text-sm font-mono">Humidity</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <FaWind className="text-blue-500 text-3xl h-12 w-12 font-mono" />
-            <div>
-              <h1 className="font-bold text-xl">{weather.wind.speed} km/h</h1>
-              <p className="text-gray-500 dark:text-gray-400 text-sm font-mono">Wind Speed</p>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Buttons (Hourly / Daily) */}
+      <div className="flex items-center justify-center gap-4 mt-6">
+        <button
+          className={`font-bold text-2xl px-5 py-2 rounded-md transition-all ${
+            darkMode
+              ? "bg-gray-700 hover:bg-gray-600 text-gray-100"
+              : "bg-blue-400 hover:bg-blue-500 text-white"
+          }`}
+        >
+          Hourly
+        </button>
+        <button
+          className={`font-bold text-2xl px-5 py-2 rounded-md transition-all ${
+            darkMode
+              ? "bg-gray-700 hover:bg-gray-600 text-gray-100"
+              : "bg-blue-400 hover:bg-blue-500 text-white"
+          }`}
+        >
+          Daily
+        </button>
+      </div>
 
-      {/* Hourly forecast */}
+      {/* Hourly Forecast Grid */}
       {hourly.length > 0 && (
-        <div className="mt-8 p-4 w-full max-w-[800px]">
-          <div  className="flex items-center justify-center gap-4">
-
-            {/*Hourly Button*/}
-
-          <button className="font-bold text-2xl mb-4 text-center font-mono 
-           px-4 py-2 rounded-md bg-blue-400 bg-opacity-50 hover:bg-blue-500 transition-all">Hourly</button>
-
-           {/*Weekly Button*/}
-
-          <button className="font-bold text-2xl mb-4 text-center font-mono px-4 py-2  bg-opacity-50
-           bg-blue-400 transition-all rounded-md hover:bg-blue-500"
-           >Daily</button>
-          </div>
-           
-
-           {/* Hourly forecast grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {hourly.slice(0, 8).map((h) => (
-              <div
-                key={h.dt}
-                className={`flex flex-col items-center p-4 transition-colors rounded-lg ${
-                  darkMode
-                    ? "bg-gradient-to-br from-gray-700 via-gray-800 to-gray-900 text-gray-100"
-                    : "bg-gradient-to-br from-blue-100 via-blue-200 to-blue-300 text-gray-900"
-                }`}
-              >
-                <span className="text-lg mb-2">{formatHour(h.dt)}</span>
-                <div className="text-4xl mb-2">
-                  {getWeatherIcon(h.weather[0].icon)}
-                </div>
-                <span className="font-bold text-xl">{Math.round(h.temp)}°C</span>
-                <span className="text-sm capitalize text-center">
-                  {h.weather[0].description}
-                </span>
-              </div>
-            ))}
-          </div>
+        <div className="mt-8 p-4 w-full max-w-[800px] grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {hourly.slice(0, 8).map((h) => (
+            <div
+              key={h.dt}
+              className={`flex flex-col items-center p-4 rounded-lg transition ${
+                darkMode
+                  ? "bg-gray-800 text-gray-100"
+                  : "bg-blue-100 text-gray-900"
+              }`}
+            >
+              <span className="text-lg mb-2">{formatHour(h.dt)}</span>
+              <div className="text-4xl mb-2">{getWeatherIcon(h.weather[0].icon)}</div>
+              <span className="font-bold text-xl">{Math.round(h.temp)}°C</span>
+              <span className="text-sm capitalize text-center">{h.weather[0].description}</span>
+            </div>
+          ))}
         </div>
       )}
     </div>
