@@ -6,7 +6,9 @@ A weather app built with React + Typescript and powered by open weather app.It s
 
 Here is the preview of the Weather App
 
-![App Screenshot](./src/assets/darkmode.PNG)
+![alt text](src/assets/darkmode.PNG)
+
+![alt text](src/assets/lightmode.PNG)
 
 # Features
 

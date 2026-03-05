@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import { WiHumidity } from "react-icons/wi";
-import { MdNotificationsActive } from "react-icons/md";
+
 import {
-  FaWind,
+
   FaSun,
   FaCloud,
   FaCloudSun,
